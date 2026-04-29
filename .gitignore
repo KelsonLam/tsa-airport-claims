@@ -1,0 +1,17 @@
+# Large data files
+data/tsa_claims2.csv
+data/GlobalAirportDatabase.csv
+data/maps/
+
+# Jupyter
+.ipynb_checkpoints/
+*.pyc
+__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
