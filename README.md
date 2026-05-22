@@ -2,6 +2,16 @@
 
 An end-to-end exploratory and predictive analysis of public TSA claims data, looking at where claims happen, what they cost, how often the TSA pays out, and whether claim outcomes can be predicted from the available features.
 
+The notebook is committed with all cells executed, so the charts, tables, and model results render inline on GitHub.
+
+## Preview
+
+The approval model (balanced logistic regression) judged on held-out claims, alongside the map of where claims cluster across U.S. airports.
+
+| Model performance (ROC) | Where claims happen |
+|-------------------------|---------------------|
+| ![ROC curve for the approval model](figures/roc_curve.png) | ![Geographic map of claims by airport](figures/geo_map.png) |
+
 ## What's in here
 
 - **`tsa_claims_analysis.ipynb`** - the full analysis notebook
