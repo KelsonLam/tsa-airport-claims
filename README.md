@@ -39,6 +39,15 @@ The notebook expects the following files in a `data/` folder at the repo root:
 
 The full claims file is around 35 MB so it is excluded from version control via `.gitignore`. Drop it in `data/` after cloning.
 
+A recent pass fixed a date-parsing edge case (two-digit years like "17-May-55"
+were parsing to 2055 and flowing uncorrected into the approval model) and a
+label collision on the airport map (JFK and EWR sit close enough that their
+labels used to overlap into unreadable text). Both fixes are verified against
+a synthetic stand-in dataset with the same schema, since the real claims file
+requires a data.gov download this pass didn't have access to; `figures/geo_map.png`
+and the date-range print in the notebook still reflect the pre-fix run and
+will refresh the next time this notebook runs against the real dataset.
+
 ## Running it
 
 ```bash

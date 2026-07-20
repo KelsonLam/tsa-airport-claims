@@ -8,6 +8,11 @@ data/maps/
 *.pyc
 __pycache__/
 
+# Virtual environments
+.venv/
+venv/
+env/
+
 # OS
 .DS_Store
 Thumbs.db
