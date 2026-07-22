@@ -2,6 +2,7 @@
 data/tsa_claims2.csv
 data/GlobalAirportDatabase.csv
 data/maps/
+data/raw/
 
 # Jupyter
 .ipynb_checkpoints/
