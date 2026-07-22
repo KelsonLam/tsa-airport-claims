@@ -4,6 +4,11 @@ data/GlobalAirportDatabase.csv
 data/maps/
 data/raw/
 
+# maps.zip is itself zipped with macOS AppleDouble junk baked in; extracting
+# it (done automatically by the notebook and by build_interactive_map.py)
+# recreates this every time, so it's ignored rather than deleted repeatedly.
+data/__MACOSX/
+
 # Jupyter
 .ipynb_checkpoints/
 *.pyc

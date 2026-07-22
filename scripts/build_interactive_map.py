@@ -23,15 +23,59 @@ Writes: data/tsa_claims_geo.json (small, derived, committed) and docs/index.html
 
 import base64
 import json
+import zipfile
 from pathlib import Path
 
 import pandas as pd
+import shapefile
 
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 FIGURES = ROOT / "figures"
 DOCS = ROOT / "docs"
 PAYLOAD_PATH = ROOT / "data" / "tsa_claims_geo.json"
+MAPS_ZIP = ROOT / "data" / "maps.zip"
+MAPS_DIR = ROOT / "data" / "maps"
+
+# Non-continental states/territories this map's projection doesn't cover
+# (its lon/lat window is fixed to the continental US, matching the bubbles).
+EXCLUDE_STATES = {"Alaska", "Hawaii", "Puerto Rico"}
+
+
+def load_state_boundaries() -> list[dict]:
+    """Real state polygons from the same shapefile the notebook's own static
+    map uses (data/maps.zip), simplified for a lightweight embed. Every ring
+    keeps its start/end point closed; stride-simplification is a plain
+    "keep every Nth point," not Douglas-Peucker, so it is a size/fidelity
+    tradeoff, not a claim of survey-grade precision at this zoom level.
+    """
+    if not MAPS_DIR.exists():
+        with zipfile.ZipFile(MAPS_ZIP, "r") as z:
+            z.extractall(ROOT / "data")
+
+    def simplify(ring, stride=3):
+        if len(ring) <= 20:
+            return ring
+        out = ring[::stride]
+        if out[-1] != ring[-1]:
+            out.append(ring[-1])
+        return out
+
+    sf = shapefile.Reader(str(MAPS_DIR / "states.shp"))
+    states = []
+    for shape_rec in sf.shapeRecords():
+        name = shape_rec.record["STATE_NAME"]
+        if name in EXCLUDE_STATES:
+            continue
+        shp = shape_rec.shape
+        parts = list(shp.parts) + [len(shp.points)]
+        rings = []
+        for i in range(len(parts) - 1):
+            ring = [(round(lon, 2), round(lat, 2))
+                   for lon, lat in shp.points[parts[i]:parts[i + 1]]]
+            rings.append(simplify(ring))
+        states.append({"name": name, "rings": rings})
+    return states
 
 DHS_FILES = [
     ("claims-2002-2006_0.xls", "Received through 2006"),
@@ -110,6 +154,7 @@ def build_payload() -> dict:
         "airports": airports,
         "claimTypeCounts": tsa["Claim Type"].value_counts().to_dict(),
         "claimSiteCounts": tsa["Claim Site"].value_counts().to_dict(),
+        "stateBoundaries": load_state_boundaries(),
     }
 
 
@@ -127,6 +172,7 @@ TEMPLATE = r"""<meta charset="utf-8">
   --rule: rgba(201,214,227,.10); --rule-soft: rgba(201,214,227,.06);
   --amber: #FFC24B; --amber-soft: rgba(255,194,75,.12);
   --grid: rgba(201,214,227,.08);
+  --land: #101a2e; --land-line: #1c2a44;
   --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #9085e9; --other: #4b5563;
 }
 * { box-sizing: border-box; }
@@ -396,7 +442,7 @@ function countFor(airport) {
   return airport.byType[activeType] || 0;
 }
 
-// ---------- map: real lat/lon on a flight-tracker style grid ----------
+// ---------- map: real lat/lon projection, real state boundaries ----------
 function renderMap() {
   const box = document.getElementById('map'); box.innerHTML = '';
   const W = 1000, H = 560, P = {l: 10, r: 10, t: 10, b: 10};
@@ -405,13 +451,16 @@ function renderMap() {
   const y = lat => H - P.b - (lat - LAT[0]) / (LAT[1] - LAT[0]) * (H - P.t - P.b);
 
   const svg = el('svg', {viewBox: `0 0 ${W} ${H}`}, box);
-  // faint lat/lon reference grid (flight-tracker style, no political borders needed)
-  for (let lon = -120; lon <= -70; lon += 10)
-    el('line', {x1: x(lon), x2: x(lon), y1: P.t, y2: H - P.b,
-      stroke: 'var(--grid)', 'stroke-width': 1}, svg);
-  for (let lat = 25; lat <= 50; lat += 5)
-    el('line', {x1: P.l, x2: W - P.r, y1: y(lat), y2: y(lat),
-      stroke: 'var(--grid)', 'stroke-width': 1}, svg);
+  // Real state polygons (same shapefile the notebook's static map uses),
+  // simplified for size -- this is the actual US outline, not a decorative
+  // reference grid standing in for one.
+  DATA.stateBoundaries.forEach(s => {
+    const d = s.rings.map(ring =>
+      'M' + ring.map(([lon, lat]) => `${x(lon).toFixed(1)},${y(lat).toFixed(1)}`).join('L') + 'Z'
+    ).join(' ');
+    el('path', {d, fill: 'var(--land)', stroke: 'var(--land-line)',
+      'stroke-width': 1, 'stroke-linejoin': 'round'}, svg);
+  });
 
   const values = DATA.airports.map(countFor).filter(v => v > 0);
   const max = Math.max(...values, 1);
